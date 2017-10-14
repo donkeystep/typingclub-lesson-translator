@@ -13,7 +13,6 @@ import com.google.common.base.Preconditions;
 import java.io.File;
 import java.io.IOException;
 import java.nio.file.Files;
-import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -30,6 +29,7 @@ public class LayoutTransformer {
     public static final String CHR = "chr";
     public static final String TEXT_1 = "text1";
     private static Map<Character, Character> ruEnMap = new HashMap<>();
+    private static Map<Character, Character> ruEnMapWithoutAmpersand = new HashMap<>();
 
     static {
         ruEnMap.put('q', 'й');
@@ -79,7 +79,10 @@ public class LayoutTransformer {
         ruEnMap.put('#', '№');
         ruEnMap.put('$', ';');
         ruEnMap.put('^', ':');
-        ruEnMap.put('&', '&');
+        ruEnMap.put('&', '?');
+
+        ruEnMapWithoutAmpersand.putAll(ruEnMap);
+        ruEnMapWithoutAmpersand.remove('&');
     }
 
     public static void main(String[] args) throws IOException {
@@ -106,7 +109,7 @@ public class LayoutTransformer {
 
     private static void transformLesson(JsonNode lesson) {
         ObjectNode mutableLesson = (ObjectNode) lesson;
-        mutableLesson.set(NAME, convertSingleSymbols(lesson.get(NAME)));
+        mutableLesson.set(NAME, convertSingleSymbolsUsingMap(lesson.get(NAME), ruEnMapWithoutAmpersand));
 
         JsonNode instructions = lesson.get("instruction").get("inst");
         if (instructions != null) {
@@ -143,13 +146,17 @@ public class LayoutTransformer {
     }
 
     private static JsonNode convertSingleSymbols(JsonNode node) {
+        return convertSingleSymbolsUsingMap(node, ruEnMap);
+    }
+
+    private static JsonNode convertSingleSymbolsUsingMap(JsonNode node, Map<Character, Character> conversionMap) {
         String text = node.asText();
         String[] parts = text.split(SPACE);
         List<String> resultParts = new ArrayList<>();
 
         for (String part : parts) {
             if (part.length() == 1) {
-                part = changeLayoutToRussian(part);
+                part = changeLayoutToRussianUsingMap(part, conversionMap);
             }
             resultParts.add(part);
         }
@@ -166,6 +173,23 @@ public class LayoutTransformer {
         for (char ch : source.toCharArray()) {
             boolean upperCase = Character.isUpperCase(ch);
             Character resultCh = ruEnMap.get(Character.toLowerCase(ch));
+            if (resultCh != null) {
+                if (upperCase) {
+                    ch = Character.toUpperCase(resultCh);
+                } else {
+                    ch = resultCh;
+                }
+            }
+            resultBuilder.append(ch);
+        }
+        return resultBuilder.toString();
+    }
+
+    private static String changeLayoutToRussianUsingMap(String source, Map<Character, Character> conversionMap) {
+        StringBuilder resultBuilder = new StringBuilder();
+        for (char ch : source.toCharArray()) {
+            boolean upperCase = Character.isUpperCase(ch);
+            Character resultCh = conversionMap.get(Character.toLowerCase(ch));
             if (resultCh != null) {
                 if (upperCase) {
                     ch = Character.toUpperCase(resultCh);
