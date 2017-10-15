@@ -21,6 +21,18 @@ import java.util.Map;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
+/**
+ * Transforms English lesson plan to another layout.
+ * Takes source file from SOURCE_LESSON_PLAN_FILE_PATH
+ * Creates target file at TARGET_LESSON_PLAN_FILE_PATH
+ *
+ * Fields transformed are:
+ * - lesson.name
+ * - lesson.instruction.body
+ * - lesson.instruction.title
+ * - lesson.instruction.character
+ * - lesson.text1
+ */
 public class LayoutTransformer {
     public static final String NAME = "name";
     public static final String SPACE = " ";
@@ -28,6 +40,8 @@ public class LayoutTransformer {
     public static final String TITLE = "title";
     public static final String CHR = "chr";
     public static final String TEXT_1 = "text1";
+    public static final String SOURCE_LESSON_PLAN_FILE_PATH = "./resources/lessonPlans/export_lesson_plan_en.json";
+    public static final String TARGET_LESSON_PLAN_FILE_PATH = "./resources/lessonPlans/export_lesson_plan_ru.json";
     private static Map<Character, Character> ruEnMap = new HashMap<>();
     private static Map<Character, Character> ruEnMapWithoutAmpersand = new HashMap<>();
 
@@ -86,7 +100,7 @@ public class LayoutTransformer {
     }
 
     public static void main(String[] args) throws IOException {
-        Files.write(Paths.get("./resources/lessonPlans/export_lesson_plan_ru.json"), transformLessonPlanJson().getBytes());
+        Files.write(Paths.get(TARGET_LESSON_PLAN_FILE_PATH), transformLessonPlanJson().getBytes());
     }
 
     private static String transformLessonPlanJson() throws JsonProcessingException {
@@ -96,7 +110,7 @@ public class LayoutTransformer {
         //Read from file
         JsonNode lessonPlan = null;
         try {
-            lessonPlan = mapper.readValue(new File("./resources/lessonPlans/export_lesson_plan_en.json"), JsonNode.class);
+            lessonPlan = mapper.readValue(new File(SOURCE_LESSON_PLAN_FILE_PATH), JsonNode.class);
         } catch (IOException e) {
             e.printStackTrace();
         }
@@ -123,7 +137,7 @@ public class LayoutTransformer {
         JsonNode typing = lesson.get("typing");
         if (typing != null && !(typing instanceof NullNode)) {
             ObjectNode mutableTyping = (ObjectNode) typing;
-            mutableTyping.set(TEXT_1, convert(typing.get(TEXT_1)));
+            mutableTyping.set(TEXT_1, convertTextNode(typing.get(TEXT_1)));
         }
     }
 
@@ -163,7 +177,14 @@ public class LayoutTransformer {
         return new TextNode(Joiner.on(SPACE).join(resultParts));
     }
 
-    private static JsonNode convert(JsonNode node) {
+    /**
+     * Converts whole text content of a node to another layout.
+     *
+     * TODO: instead of symbol-to-symbol transformation, convert words as sets of symbols using target language dictionary.
+     * @param node
+     * @return
+     */
+    private static JsonNode convertTextNode(JsonNode node) {
         String text = node.asText();
         return new TextNode(changeLayoutToRussian(text));
     }
