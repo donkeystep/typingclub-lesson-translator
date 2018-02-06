@@ -12,6 +12,7 @@ import com.google.common.base.Preconditions;
 import com.voronovsd.text.transformer.TextTransformer;
 import com.voronovsd.text.transformer.impl.EnRuSimpleNoAmpersandTextLayoutTransformer;
 import com.voronovsd.text.transformer.impl.EnRuSimpleTextLayoutTransformer;
+import com.voronovsd.text.transformer.impl.EnRuWordLayoutTransformer;
 
 import java.io.File;
 import java.io.IOException;
@@ -46,11 +47,13 @@ public class LessonPlanLayoutTransformer {
     public static final String SOURCE_LESSON_PLAN_FILE_PATH = "./resources/lessonPlans/export_lesson_plan_en.json";
     public static final String TARGET_LESSON_PLAN_FILE_PATH = "./resources/lessonPlans/export_lesson_plan_ru.json";
 
-    private static TextTransformer textTransformer = new EnRuSimpleTextLayoutTransformer();
+    private static EnRuWordLayoutTransformer textTransformer = new EnRuWordLayoutTransformer();
     private static TextTransformer noAmpersandTextTransformer = new EnRuSimpleNoAmpersandTextLayoutTransformer();
 
     public static void main(String[] args) throws IOException {
         Files.write(Paths.get(TARGET_LESSON_PLAN_FILE_PATH), transformLessonPlanJson().getBytes());
+        System.out.println("Transformed by symbol: " + textTransformer.getTransformedBySymbol());
+        System.out.println("Transformed to word: " + textTransformer.getTransformedToWord());
     }
 
     private static String transformLessonPlanJson() throws JsonProcessingException {
