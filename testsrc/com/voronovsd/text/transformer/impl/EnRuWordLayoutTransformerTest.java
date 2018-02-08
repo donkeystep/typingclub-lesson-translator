@@ -25,7 +25,7 @@ public class EnRuWordLayoutTransformerTest {
 
     @Test
     public void testTransformPhrase() {
-        assertEquals("should get this from symbols", "еда еда", transformer.transform("tlf tlf"));
+        assertEquals("should get this from symbols", "еда еда", transformer.transform("Hat Horse Great Him At Home Got Hair About Give He House Lot Gave Get How Game Go Demand Green Happy Good Heard Kept Hurry Help Here Have Head Almost Hello Gold"));
     }
 
     @Test
@@ -33,6 +33,9 @@ public class EnRuWordLayoutTransformerTest {
         assertEquals("should get this from symbols", "еда, еда", transformer.transform("tlf, tlf"));
     }
 
-
+    @Test
+    public void testTransformWithNotEnoughLength(){
+        assertEquals("чабан", transformer.transform("xf,y"));
+    }
 
 }

@@ -20,18 +20,19 @@ public class EnRuWordLayoutTransformer implements TextTransformer {
     private int transformedBySymbol;
     private int transformedToWord;
 
-    private Map<String, TreeMap<Integer, String>> dictionary = new HashMap<>();
+    private Map<Set<Character>, TreeMap<Integer, String>> dictionary = new HashMap<>();
+    private Set<Character> knownSymbols = new TreeSet<>();
+
 
     {
         try (Stream<String> lines = Files.lines(Paths.get(RU_FREQUENCY_DICTIONARY_PATH), Charset.defaultCharset())) {
             initializeDictionary(lines);
+            knownSymbols = new TreeSet<>();
         } catch (IOException e) {
             e.printStackTrace();
         }
     }
 
-    // TODO: remember symbols of previous sources and add them to abc if nothing found
-    // TODO: reconsider abc method to return "abcd" for "ac"
     @Override
     public String transform(String source) {
         String russianBySymbol = simpleTransformer.transform(source);
@@ -41,15 +42,17 @@ public class EnRuWordLayoutTransformer implements TextTransformer {
                 .map(word -> transformRussianSymbolsToWord(word))
                 .collect(Collectors.toList());
 
-        return Joiner.on(" ").join(resultWords);
+        String result = Joiner.on(" ").join(resultWords);
+        System.out.println(result);
+        return result;
     }
 
-     // TODO: now abcMap contains only 1 word per length, should be list
+    // TODO: now abcMap contains only 1 word per length, should be list
     private void initializeDictionary(Stream<String> lines) {
         lines.forEachOrdered(line -> {
-            String abc = getAbc(line);
+            Set<Character> abc = getAbc(line);
             TreeMap<Integer, String> abcMap = dictionary.get(abc);
-            if(abcMap == null){
+            if (abcMap == null) {
                 abcMap = new TreeMap<>();
                 dictionary.put(abc, abcMap);
             }
@@ -59,13 +62,21 @@ public class EnRuWordLayoutTransformer implements TextTransformer {
     }
 
     private String transformRussianSymbolsToWord(String word) {
-        TreeMap<Integer, String> abcMap = dictionary.get(getAbc(word));
-        if(abcMap == null){
-            transformedBySymbol++;
-            return word;
+        Set<Character> abc = getAbc(word);
+        TreeMap<Integer, String> abcMap = dictionary.get(abc);
+        if (abcMap == null) {
+            abcMap = tryGetAbcMapWithKnownSymbols(abc);
+            if (abcMap == null) {
+                transformedBySymbol++;
+                return word;
+            }
         }
-        String result = abcMap.get(word.length());
-        if(result == null){
+        Map.Entry<Integer, String> closestAbcEntry = abcMap.ceilingEntry(word.length()-1);
+        String result = null;
+        if(closestAbcEntry != null){
+            result = closestAbcEntry.getValue();
+        }
+        if (result == null) {
             transformedBySymbol++;
             return word;
         }
@@ -73,11 +84,24 @@ public class EnRuWordLayoutTransformer implements TextTransformer {
         return result;
     }
 
-    private String getAbc(String word) {
+    private TreeMap<Integer, String> tryGetAbcMapWithKnownSymbols(Set<Character> abc) {
+        for (Map.Entry<Set<Character>, TreeMap<Integer, String>> entry : dictionary.entrySet()) {
+            Set<Character> entrySymbols = entry.getKey();
+            if (entrySymbols.containsAll(abc)) {
+                if (knownSymbols.containsAll(entrySymbols)) {
+                    return entry.getValue();
+                }
+            }
+        }
+        return null;
+    }
+
+    private Set<Character> getAbc(String word) {
         Set<Character> symbolSet = new TreeSet<>();
         symbolSet.addAll(Lists.charactersOf(word));
 
-        return Joiner.on("").join(symbolSet);
+        knownSymbols.addAll(symbolSet);
+        return symbolSet;
     }
 
     public int getTransformedBySymbol() {
