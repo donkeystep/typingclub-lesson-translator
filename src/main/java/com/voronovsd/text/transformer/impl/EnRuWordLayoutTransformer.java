@@ -22,14 +22,31 @@ public class EnRuWordLayoutTransformer implements TextTransformer {
 
     private Map<Set<Character>, TreeMap<Integer, String>> dictionary = new HashMap<>();
     private Set<Character> knownSymbols = new TreeSet<>();
-
+    private List<Set<Character>> fingerSets = new ArrayList<>();
+    private String[] fingerStrings = new String[]{
+            "йфя",
+            "цыч",
+            "увс",
+            "камепи",
+            "нртгоь",
+            "шлб",
+            "щдю",
+            "зж.хэъ"
+    };
 
     {
         try (Stream<String> lines = Files.lines(Paths.get(RU_FREQUENCY_DICTIONARY_PATH), Charset.defaultCharset())) {
             initializeDictionary(lines);
-            knownSymbols = new TreeSet<>();
+            knownSymbols.clear();
         } catch (IOException e) {
             e.printStackTrace();
+        }
+
+        for(String fingerString: fingerStrings){
+            Character[] charObjectArray = fingerString.chars()
+                    .mapToObj(c -> (char)c)
+                    .toArray(Character[]::new);
+            fingerSets.add(new TreeSet<>(Arrays.asList(charObjectArray)));
         }
     }
 
@@ -61,8 +78,12 @@ public class EnRuWordLayoutTransformer implements TextTransformer {
         });
     }
 
+    // TODO: if abcMap == null, remove one symbol and try again, repeat. Then repeat for the rest.
     private String transformRussianSymbolsToWord(String word) {
         Set<Character> abc = getAbc(word);
+        if(isForOneFinger(abc)){
+            return word;
+        }
         TreeMap<Integer, String> abcMap = dictionary.get(abc);
         if (abcMap == null) {
             abcMap = tryGetAbcMapWithKnownSymbols(abc);
@@ -82,6 +103,15 @@ public class EnRuWordLayoutTransformer implements TextTransformer {
         }
         transformedToWord++;
         return result;
+    }
+
+    private boolean isForOneFinger(Set<Character> abc) {
+        for(Set<Character> fingerSet: fingerSets){
+            if(fingerSet.containsAll(abc)){
+                return true;
+            }
+        }
+        return false;
     }
 
     private TreeMap<Integer, String> tryGetAbcMapWithKnownSymbols(Set<Character> abc) {

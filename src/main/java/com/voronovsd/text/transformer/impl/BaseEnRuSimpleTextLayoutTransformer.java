@@ -39,7 +39,7 @@ public abstract class BaseEnRuSimpleTextLayoutTransformer implements TextTransfo
         ruEnMap.put('l', 'д');
         ruEnMap.put(';', 'ж');
         ruEnMap.put(':', 'Ж');
-        ruEnMap.put('\"', 'э');
+        ruEnMap.put('\'', 'э');
         ruEnMap.put('\"', 'Э');
         ruEnMap.put('z', 'я');
         ruEnMap.put('x', 'ч');

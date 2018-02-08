@@ -14,6 +14,12 @@ public class EnRuWordLayoutTransformerTest {
     }
 
     @Test
+    public void testTransformOneFingerWord(){
+        assertEquals("should transform by-symbol", "кам", transformer.transform("rfv"));
+        assertEquals("should transform by-symbol", "зж.хэъ", transformer.transform("p;/[']"));
+    }
+
+    @Test
     public void testTransformWordWithCapitalLetter(){
         assertEquals("should get this from symbols", "Еда", transformer.transform("Tlf"));
     }
