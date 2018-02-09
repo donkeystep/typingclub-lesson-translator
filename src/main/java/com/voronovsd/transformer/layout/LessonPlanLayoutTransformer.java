@@ -53,6 +53,7 @@ public class LessonPlanLayoutTransformer {
     public static void main(String[] args) throws IOException {
         Files.write(Paths.get(TARGET_LESSON_PLAN_FILE_PATH), transformLessonPlanJson().getBytes());
         System.out.println("Transformed by symbol: " + textTransformer.getTransformedBySymbol());
+        System.out.println("Transformed to word part: " + textTransformer.getTransformedToWordPart());
         System.out.println("Transformed to word: " + textTransformer.getTransformedToWord());
     }
 

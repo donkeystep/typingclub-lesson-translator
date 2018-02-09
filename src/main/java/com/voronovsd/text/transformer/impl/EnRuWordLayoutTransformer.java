@@ -16,12 +16,15 @@ import java.util.stream.Stream;
 
 public class EnRuWordLayoutTransformer implements TextTransformer {
     private static final String RU_FREQUENCY_DICTIONARY_PATH = "resources/freq_rus_utf.txt";
+    private static final int MAX_ADDED_SYMBOLS_PER_WORD = 2;
     private TextTransformer simpleTransformer = new EnRuSimpleTextLayoutTransformer();
     private int transformedBySymbol;
     private int transformedToWord;
+    private int transformedToWordPart;
 
     private Map<Set<Character>, TreeMap<Integer, String>> dictionary = new HashMap<>();
     private Set<Character> knownSymbols = new TreeSet<>();
+    private Set<Character> symbolsInLesson = new TreeSet<>();
     private List<Set<Character>> fingerSets = new ArrayList<>();
     private String[] fingerStrings = new String[]{
             "йфя",
@@ -55,6 +58,12 @@ public class EnRuWordLayoutTransformer implements TextTransformer {
         String russianBySymbol = simpleTransformer.transform(source);
         List<String> words = Splitter.on(" ").splitToList(russianBySymbol);
 
+        symbolsInLesson.clear();
+        symbolsInLesson.addAll(getAbc(russianBySymbol));
+        symbolsInLesson.remove(' ');
+
+        knownSymbols.addAll(symbolsInLesson);
+
         List<String> resultWords = words.stream()
                 .map(word -> transformRussianSymbolsToWord(word))
                 .collect(Collectors.toList());
@@ -78,31 +87,64 @@ public class EnRuWordLayoutTransformer implements TextTransformer {
         });
     }
 
-    // TODO: if abcMap == null, remove one symbol and try again, repeat. Then repeat for the rest.
+    // TODO: if start from capital letter - lowercase, transform, capitalize first letter.
     private String transformRussianSymbolsToWord(String word) {
         Set<Character> abc = getAbc(word);
         if(isForOneFinger(abc)){
             return word;
         }
-        TreeMap<Integer, String> abcMap = dictionary.get(abc);
-        if (abcMap == null) {
-            abcMap = tryGetAbcMapWithKnownSymbols(abc);
-            if (abcMap == null) {
-                transformedBySymbol++;
-                return word;
-            }
+
+        StringBuilder notTransformed = new StringBuilder(word);
+        StringBuilder transformed = new StringBuilder();
+        int passCount = 0;
+        while(notTransformed.length() > 0){
+            transformed.append(transformPart(notTransformed));
+            passCount++;
         }
-        Map.Entry<Integer, String> closestAbcEntry = abcMap.ceilingEntry(word.length()-1);
+        if(passCount == 1){
+            transformedToWord++;
+        }
+        return transformed.toString();
+    }
+
+    private String transformPart(StringBuilder notTransformed) {
+        String tempWord = notTransformed.toString();
         String result = null;
-        if(closestAbcEntry != null){
-            result = closestAbcEntry.getValue();
+        boolean transformedToWordPartSuccessfully = false;
+        while(tempWord.length() > 1){
+            TreeMap<Integer, String> abcMap = tryGetAbcMap(tempWord);
+            if(abcMap != null){
+                Map.Entry<Integer, String> closestAbcEntry = abcMap.ceilingEntry(tempWord.length()-1);
+                if(closestAbcEntry != null && closestAbcEntry.getKey() <= tempWord.length() + MAX_ADDED_SYMBOLS_PER_WORD){
+                    result = closestAbcEntry.getValue();
+                    transformedToWordPartSuccessfully = true;
+                    break;
+                }
+            }
+            tempWord = tempWord.substring(0, tempWord.length() - 1);
         }
-        if (result == null) {
+        notTransformed.delete(0, tempWord.length());
+
+        if(transformedToWordPartSuccessfully){
+            transformedToWordPart++;
+        } else {
             transformedBySymbol++;
-            return word;
+            result = tempWord;
         }
-        transformedToWord++;
         return result;
+    }
+
+    private TreeMap<Integer, String> tryGetAbcMap(String result) {
+        Set<Character> abc = getAbc(result);
+        TreeMap<Integer, String> abcMap = dictionary.get(abc);
+        if(abcMap != null){
+            return abcMap;
+        }
+        abcMap = tryGetAbcMapWithLessonSymbols(abc);
+        if(abcMap != null){
+            return abcMap;
+        }
+        return tryGetAbcMapWithAllKnownSymbols(abc);
     }
 
     private boolean isForOneFinger(Set<Character> abc) {
@@ -114,7 +156,7 @@ public class EnRuWordLayoutTransformer implements TextTransformer {
         return false;
     }
 
-    private TreeMap<Integer, String> tryGetAbcMapWithKnownSymbols(Set<Character> abc) {
+    private TreeMap<Integer, String> tryGetAbcMapWithAllKnownSymbols(Set<Character> abc) {
         for (Map.Entry<Set<Character>, TreeMap<Integer, String>> entry : dictionary.entrySet()) {
             Set<Character> entrySymbols = entry.getKey();
             if (entrySymbols.containsAll(abc)) {
@@ -125,13 +167,20 @@ public class EnRuWordLayoutTransformer implements TextTransformer {
         }
         return null;
     }
+    private TreeMap<Integer, String> tryGetAbcMapWithLessonSymbols(Set<Character> abc) {
+        for (Map.Entry<Set<Character>, TreeMap<Integer, String>> entry : dictionary.entrySet()) {
+            Set<Character> entrySymbols = entry.getKey();
+            if (entrySymbols.containsAll(abc)) {
+                if (symbolsInLesson.containsAll(entrySymbols)) {
+                    return entry.getValue();
+                }
+            }
+        }
+        return null;
+    }
 
     private Set<Character> getAbc(String word) {
-        Set<Character> symbolSet = new TreeSet<>();
-        symbolSet.addAll(Lists.charactersOf(word));
-
-        knownSymbols.addAll(symbolSet);
-        return symbolSet;
+        return new TreeSet<>(Lists.charactersOf(word));
     }
 
     public int getTransformedBySymbol() {
@@ -140,5 +189,9 @@ public class EnRuWordLayoutTransformer implements TextTransformer {
 
     public int getTransformedToWord() {
         return transformedToWord;
+    }
+
+    public int getTransformedToWordPart() {
+        return transformedToWordPart;
     }
 }
