@@ -22,7 +22,7 @@ public class EnRuWordLayoutTransformer implements TextTransformer {
     private int transformedToWord;
     private int transformedToWordPart;
 
-    private Map<Set<Character>, TreeMap<Integer, String>> dictionary = new HashMap<>();
+    private Map<Set<Character>, TreeMap<Integer, List<String>>> dictionary = new HashMap<>();
     private Set<Character> knownSymbols = new TreeSet<>();
     private Set<Character> symbolsInLesson = new TreeSet<>();
     private List<Set<Character>> fingerSets = new ArrayList<>();
@@ -45,9 +45,9 @@ public class EnRuWordLayoutTransformer implements TextTransformer {
             e.printStackTrace();
         }
 
-        for(String fingerString: fingerStrings){
+        for (String fingerString : fingerStrings) {
             Character[] charObjectArray = fingerString.chars()
-                    .mapToObj(c -> (char)c)
+                    .mapToObj(c -> (char) c)
                     .toArray(Character[]::new);
             fingerSets.add(new TreeSet<>(Arrays.asList(charObjectArray)));
         }
@@ -77,31 +77,37 @@ public class EnRuWordLayoutTransformer implements TextTransformer {
     private void initializeDictionary(Stream<String> lines) {
         lines.forEachOrdered(line -> {
             Set<Character> abc = getAbc(line);
-            TreeMap<Integer, String> abcMap = dictionary.get(abc);
+            TreeMap<Integer, List<String>> abcMap = dictionary.get(abc);
             if (abcMap == null) {
                 abcMap = new TreeMap<>();
                 dictionary.put(abc, abcMap);
             }
-            abcMap.put(line.length(), line);
+            if (abcMap.containsKey(line.length())) {
+                abcMap.get(line.length()).add(line);
 
+            } else {
+                List<String> list = new ArrayList<>();
+                list.add(line);
+                abcMap.put(line.length(), list);
+            }
         });
     }
 
     // TODO: if start from capital letter - lowercase, transform, capitalize first letter.
     private String transformRussianSymbolsToWord(String word) {
         Set<Character> abc = getAbc(word);
-        if(isForOneFinger(abc)){
+        if (isForOneFinger(abc)) {
             return word;
         }
 
         StringBuilder notTransformed = new StringBuilder(word);
         StringBuilder transformed = new StringBuilder();
         int passCount = 0;
-        while(notTransformed.length() > 0){
+        while (notTransformed.length() > 0) {
             transformed.append(transformPart(notTransformed));
             passCount++;
         }
-        if(passCount == 1){
+        if (passCount == 1) {
             transformedToWord++;
         }
         return transformed.toString();
@@ -111,11 +117,11 @@ public class EnRuWordLayoutTransformer implements TextTransformer {
         String tempWord = notTransformed.toString();
         String result = null;
         boolean transformedToWordPartSuccessfully = false;
-        while(tempWord.length() > 1){
+        while (tempWord.length() > 1) {
             TreeMap<Integer, String> abcMap = tryGetAbcMap(tempWord);
-            if(abcMap != null){
-                Map.Entry<Integer, String> closestAbcEntry = abcMap.ceilingEntry(tempWord.length()-1);
-                if(closestAbcEntry != null && closestAbcEntry.getKey() <= tempWord.length() + MAX_ADDED_SYMBOLS_PER_WORD){
+            if (abcMap != null) {
+                Map.Entry<Integer, String> closestAbcEntry = abcMap.ceilingEntry(tempWord.length() - 1);
+                if (closestAbcEntry != null && closestAbcEntry.getKey() <= tempWord.length() + MAX_ADDED_SYMBOLS_PER_WORD) {
                     result = closestAbcEntry.getValue();
                     transformedToWordPartSuccessfully = true;
                     break;
@@ -125,7 +131,7 @@ public class EnRuWordLayoutTransformer implements TextTransformer {
         }
         notTransformed.delete(0, tempWord.length());
 
-        if(transformedToWordPartSuccessfully){
+        if (transformedToWordPartSuccessfully) {
             transformedToWordPart++;
         } else {
             transformedBySymbol++;
@@ -137,19 +143,19 @@ public class EnRuWordLayoutTransformer implements TextTransformer {
     private TreeMap<Integer, String> tryGetAbcMap(String result) {
         Set<Character> abc = getAbc(result);
         TreeMap<Integer, String> abcMap = dictionary.get(abc);
-        if(abcMap != null){
+        if (abcMap != null) {
             return abcMap;
         }
         abcMap = tryGetAbcMapWithLessonSymbols(abc);
-        if(abcMap != null){
+        if (abcMap != null) {
             return abcMap;
         }
         return tryGetAbcMapWithAllKnownSymbols(abc);
     }
 
     private boolean isForOneFinger(Set<Character> abc) {
-        for(Set<Character> fingerSet: fingerSets){
-            if(fingerSet.containsAll(abc)){
+        for (Set<Character> fingerSet : fingerSets) {
+            if (fingerSet.containsAll(abc)) {
                 return true;
             }
         }
@@ -167,6 +173,7 @@ public class EnRuWordLayoutTransformer implements TextTransformer {
         }
         return null;
     }
+
     private TreeMap<Integer, String> tryGetAbcMapWithLessonSymbols(Set<Character> abc) {
         for (Map.Entry<Set<Character>, TreeMap<Integer, String>> entry : dictionary.entrySet()) {
             Set<Character> entrySymbols = entry.getKey();
