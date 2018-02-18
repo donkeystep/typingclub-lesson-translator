@@ -10,7 +10,6 @@ import com.fasterxml.jackson.databind.node.TextNode;
 import com.google.common.base.Joiner;
 import com.google.common.base.Preconditions;
 import com.voronovsd.text.transformer.TextTransformer;
-import com.voronovsd.text.transformer.impl.EnRuSimpleNoAmpersandTextLayoutTransformer;
 import com.voronovsd.text.transformer.impl.EnRuSimpleTextLayoutTransformer;
 import com.voronovsd.text.transformer.impl.EnRuWordLayoutTransformer;
 
@@ -18,10 +17,7 @@ import java.io.File;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Paths;
-import java.util.ArrayList;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
+import java.util.*;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
@@ -48,7 +44,7 @@ public class LessonPlanLayoutTransformer {
     public static final String TARGET_LESSON_PLAN_FILE_PATH = "./resources/lessonPlans/export_lesson_plan_ru.json";
 
     private static EnRuWordLayoutTransformer textTransformer = new EnRuWordLayoutTransformer();
-    private static TextTransformer noAmpersandTextTransformer = new EnRuSimpleNoAmpersandTextLayoutTransformer();
+    private static TextTransformer simpleTransformer = new EnRuSimpleTextLayoutTransformer();
 
     public static void main(String[] args) throws IOException {
         Files.write(Paths.get(TARGET_LESSON_PLAN_FILE_PATH), transformLessonPlanJson().getBytes());
@@ -77,7 +73,8 @@ public class LessonPlanLayoutTransformer {
 
     private static void transformLesson(JsonNode lesson) {
         ObjectNode mutableLesson = (ObjectNode) lesson;
-        mutableLesson.set(NAME, convertSingleSymbolsUsingTransformer(lesson.get(NAME), noAmpersandTextTransformer));
+        Set<Character> targetSymbols = new TreeSet<>();
+        mutableLesson.set(NAME, convertSingleSymbolsExtractTarget(lesson.get(NAME), targetSymbols));
 
         JsonNode instructions = lesson.get("instruction").get("inst");
         if (instructions != null) {
@@ -91,7 +88,7 @@ public class LessonPlanLayoutTransformer {
         JsonNode typing = lesson.get("typing");
         if (typing != null && !(typing instanceof NullNode)) {
             ObjectNode mutableTyping = (ObjectNode) typing;
-            mutableTyping.set(TEXT_1, convertTextNode(typing.get(TEXT_1)));
+            mutableTyping.set(TEXT_1, convertTextNode(typing.get(TEXT_1), targetSymbols));
         }
     }
 
@@ -110,21 +107,24 @@ public class LessonPlanLayoutTransformer {
     private static String convertInBrackets(String source) {
         Preconditions.checkArgument(source.length() == 3);
         String partToChange = source.substring(1, 2);
-        return "[" + textTransformer.transform(partToChange) + "]";
+        return "[" + simpleTransformer.transform(partToChange) + "]";
     }
 
     private static JsonNode convertSingleSymbols(JsonNode node) {
-        return convertSingleSymbolsUsingTransformer(node, textTransformer);
+        return convertSingleSymbolsExtractTarget(node, null);
     }
 
-    private static JsonNode convertSingleSymbolsUsingTransformer(JsonNode node, TextTransformer transformer) {
+    private static JsonNode convertSingleSymbolsExtractTarget(JsonNode node, Set<Character> targetSymbols) {
         String text = node.asText();
         String[] parts = text.split(SPACE);
         List<String> resultParts = new ArrayList<>();
 
         for (String part : parts) {
-            if (part.length() == 1) {
-                part = transformer.transform(part);
+            if (part.length() == 1 && !part.equals("&")) {
+                part = textTransformer.transform(part);
+                if(targetSymbols != null){
+                    targetSymbols.add(part.charAt(0));
+                }
             }
             resultParts.add(part);
         }
@@ -134,13 +134,13 @@ public class LessonPlanLayoutTransformer {
     /**
      * Converts whole text content of a node to another layout.
      *
-     * TODO: instead of symbol-to-symbol transformation, convert words as sets of symbols using target language dictionary.
      * @param node
+     * @param targetSymbols
      * @return
      */
-    private static JsonNode convertTextNode(JsonNode node) {
+    private static JsonNode convertTextNode(JsonNode node, Set<Character> targetSymbols) {
         String text = node.asText();
 
-        return new TextNode(textTransformer.transform(text));
+        return new TextNode(textTransformer.transformWithTargetSymbols(text, targetSymbols));
     }
 }

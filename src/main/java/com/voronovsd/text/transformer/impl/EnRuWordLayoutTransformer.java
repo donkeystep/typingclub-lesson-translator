@@ -24,7 +24,7 @@ public class EnRuWordLayoutTransformer implements TextTransformer {
 
     private Map<Set<Character>, TreeMap<Integer, String>> dictionary = new HashMap<>();
     private Set<Character> knownSymbols = new TreeSet<>();
-    private Set<Character> symbolsInLesson = new TreeSet<>();
+    private Set<Character> targetSymbols = new TreeSet<>();
     private List<Set<Character>> fingerSets = new ArrayList<>();
     private String[] fingerStrings = new String[]{
             "йфя",
@@ -53,16 +53,16 @@ public class EnRuWordLayoutTransformer implements TextTransformer {
         }
     }
 
+    // TODO: use lesson description to find out target symbols and try to save only these, adding all other known.
+
     @Override
-    public String transform(String source) {
+    public String transformWithTargetSymbols(String source, Set<Character> targetSymbols) {
         String russianBySymbol = simpleTransformer.transform(source);
         List<String> words = Splitter.on(" ").splitToList(russianBySymbol);
 
-        symbolsInLesson.clear();
-        symbolsInLesson.addAll(getAbc(russianBySymbol));
-        symbolsInLesson.remove(' ');
-
-        knownSymbols.addAll(symbolsInLesson);
+        knownSymbols.addAll(getAbc(russianBySymbol));
+        knownSymbols.remove(' ');
+        this.targetSymbols = targetSymbols;
 
         List<String> resultWords = words.stream()
                 .map(word -> transformRussianSymbolsToWord(word))
@@ -140,7 +140,7 @@ public class EnRuWordLayoutTransformer implements TextTransformer {
         if(abcMap != null){
             return abcMap;
         }
-        abcMap = tryGetAbcMapWithLessonSymbols(abc);
+        abcMap = tryGetAbcMapWithTargetSymbols(abc);
         if(abcMap != null){
             return abcMap;
         }
@@ -167,11 +167,11 @@ public class EnRuWordLayoutTransformer implements TextTransformer {
         }
         return null;
     }
-    private TreeMap<Integer, String> tryGetAbcMapWithLessonSymbols(Set<Character> abc) {
+    private TreeMap<Integer, String> tryGetAbcMapWithTargetSymbols(Set<Character> abc) {
         for (Map.Entry<Set<Character>, TreeMap<Integer, String>> entry : dictionary.entrySet()) {
             Set<Character> entrySymbols = entry.getKey();
             if (entrySymbols.containsAll(abc)) {
-                if (symbolsInLesson.containsAll(entrySymbols)) {
+                if (targetSymbols.containsAll(entrySymbols)) {
                     return entry.getValue();
                 }
             }

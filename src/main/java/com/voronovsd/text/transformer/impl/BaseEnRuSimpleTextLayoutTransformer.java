@@ -8,7 +8,6 @@ import java.util.Map;
 public abstract class BaseEnRuSimpleTextLayoutTransformer implements TextTransformer {
 
     protected Map<Character, Character> ruEnMap = new HashMap<>();
-    protected Map<Character, Character> ruEnMapWithoutAmpersand = new HashMap<>();
 
     {
         ruEnMap.put('q', 'й');
@@ -59,9 +58,6 @@ public abstract class BaseEnRuSimpleTextLayoutTransformer implements TextTransfo
         ruEnMap.put('$', ';');
         ruEnMap.put('^', ':');
         ruEnMap.put('&', '?');
-
-        ruEnMapWithoutAmpersand.putAll(ruEnMap);
-        ruEnMapWithoutAmpersand.remove('&');
     }
 
     @Override
